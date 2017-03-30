@@ -1,16 +1,15 @@
-function ReconstructCorticalSurface(patientCode)
+function ReconstructCorticalSurface(patientCode, inputpath)
 
 
     % dataPath = 'c:\research\data\patients\';
-    dataPath = [myGetenv('subject_dir') '\'];
+%     dataPath = [myGetenv('subject_dir') '\'];
+    dataPath = [inputpath '\'];
 
     files = dir([myGetenv('matlab_devel_dir') '\Visualization\Recon\reconConfig.mat']);
 
     if isempty(files) 
         config = CreateConfig();
         save([myGetenv('matlab_devel_dir') '\Visualization\Recon\reconConfig.mat'],'config')
-%     else
-%         load([myGetenv('matlab_devel_dir') '\Visualization\Recon\reconConfig.mat'],'config')        
     end
 
 
@@ -37,8 +36,6 @@ function ReconstructCorticalSurface(patientCode)
     freesurferStarted = ~isempty(file);
     
     % Has freesurfer been started yet?
-%     warning('freesurferStarted forced to 0');
-%     freesurferStarted=0;
     if freesurferStarted == 0
         %Start freesurfer up
         BeginFreesurfer(baseDir, mriDir, ctDir, surfDir);
@@ -49,12 +46,12 @@ function ReconstructCorticalSurface(patientCode)
     file = dir([mriDir 'lh.dpial.ribbon.nii']);
     freesurferCompleted = ~isempty(file);
     % DEBUG
-    freesurferCompleted = 0;
+%     freesurferCompleted = 0;
 
     %If freesurfer was started but not completed, check to see if it's
     %still going
     if freesurferStarted == 1 && freesurferCompleted == 0
-        freesurferCompleted = PollFreesurferComplete();
+        freesurferCompleted = PollFreesurferComplete(); %set this to 1 if you run into a white matter voxel error (default is = PollFreesurferComplete())
         if freesurferCompleted == 1
             GetFreesurferResults(mriDir);
             fprintf('Freesurfer reconstruction complete!\n');
@@ -88,8 +85,7 @@ function ReconstructCorticalSurface(patientCode)
         ProjectElectrodes(baseDir);
     end
         
-    
-    
+
     fprintf('Completely finished reconstructions! All surfaces have been generated!\n');
 end
 
@@ -145,7 +141,11 @@ function ProjectElectrodes(subjDir )
 
         [x,y,z]=ind2sub(size(brainHull),find(brainHull>0)); 
         % from indices 2 native
+        %%%%%% THIS ONLY INSERTED FOR ONE SUBJECT 6d865b AND IS ONLY FOR
+        %%%%%% PRE-ALIGNED ONLY!!
         gs=([x y z]*transformMat(1:3,1:3)')+repmat(transformMat(1:3,4),1,length(x))'; 
+%         gs = [x y z]; % ONLY IF PRE-ALIGNED, USE ABOVE LINE IF NORMAL
+%%%%%%%
     %     fprintf('LOWRES HACK IN EFFECT!!!!\n');
     %     gs=([x y z]*transformMat(1:3,1:3)')+repmat(transformMat(1:3,4),1,length(x))'; 
     %     gs = [x z y];
@@ -291,7 +291,7 @@ function GenerateNeededSurfaces(baseDir)
                         case 'hires'
                             fprintf('  Combining left and right hi-res OBJ\n');
                             
-                            meshLabExe = fullfile(myGetenv('gridlab_ext_dir'), 'external', 'MeshLab', 'meshlabserver.exe');
+                            meshLabExe = fullfile(myGetenv('matlab_devel_dir'), 'external', 'MeshLab', 'meshlabserver.exe');
                             inLeft = [baseDir 'surf\obj\lh.obj'];
                             inRight = [baseDir 'surf\obj\rh.obj'];
                             bothFile = [baseDir 'surf\obj\both.obj'];
@@ -309,7 +309,7 @@ function GenerateNeededSurfaces(baseDir)
                         case 'lowres'
                             fprintf('  Combining left and right low-res OBJ\n');
                             
-                            meshLabExe = [myGetenv('gridlab_ext_dir') '\external\MeshLab\meshlabserver.exe'];
+                            meshLabExe = [myGetenv('matlab_devel_dir') '\external\MeshLab\meshlabserver.exe'];
                             inLeft = [baseDir 'surf/obj/lh_lowres.obj'];
                             inRight = [baseDir 'surf/obj/rh_lowres.obj'];
                             bothFile = [baseDir 'surf/obj/both_lowres.obj'];
@@ -336,7 +336,7 @@ function GenerateNeededSurfaces(baseDir)
                             
                             fprintf('  Combining left and right printable OBJ\n');
                             
-                            meshLabExe = [myGetenv('gridlab_ext_dir') '\external\MeshLab\meshlabserver.exe'];
+                            meshLabExe = [myGetenv('matlab_devel_dir') '\external\MeshLab\meshlabserver.exe'];
                             inLeft = [baseDir 'surf/obj/lh_printable.obj'];
                             inRight = [baseDir 'surf/obj/rh_printable.obj'];
                             bothFile = [baseDir 'surf/obj/both.obj'];
@@ -375,7 +375,7 @@ function GenerateNeededSurfaces(baseDir)
                             fprintf('  Executing meshlab surface decimation\n');
 
                             % HARDCODED
-                            meshLabExe = [myGetenv('gridlab_ext_dir') '\external\MeshLab\meshlabserver.exe'];
+                            meshLabExe = [myGetenv('matlab_devel_dir') '\external\MeshLab\meshlabserver.exe'];
                             inputFile = [baseDir 'surf/obj/' side{:} '.obj'];
                             scriptFile = [myGetenv('matlab_devel_dir') '\Visualization\Recon\create_lowpoly.mlx'];
                             outputFile = [baseDir 'surf/obj/' side{:} '_lowres.obj'];
@@ -573,7 +573,6 @@ function BeginFreesurfer(baseDir, mriDir, ctDir, surfDir)
     try [a b c] = mkdir(mriDir); catch e; end;
     try [a b c] = mkdir(ctDir); catch e; end;
     
-%     load([myGetenv('matlab_devel_dir') '\Visualization\Recon\reconConfig.mat'],'config')        
 
 
     %%%%%%%%%%%%%%%%%%%%%%
@@ -605,7 +604,7 @@ function BeginFreesurfer(baseDir, mriDir, ctDir, surfDir)
             cd(mriDir);     %To make sure we're in the MRI directory once we read/save the file
             fprintf('Reading dicom header\n');
             hdr = spm_dicom_headers(strvcat(dicomFiles), true);
-            fprintf('Concatenating dicom files\n');
+            fprintf('Concateniating dicom files\n');
             dicomOut = spm_dicom_convert(hdr,'all','flat','img');
 
 
@@ -747,7 +746,7 @@ function BeginFreesurfer(baseDir, mriDir, ctDir, surfDir)
             end
             fprintf('Reading dicom header\n');
             hdr = spm_dicom_headers(strvcat(dicomFiles), true);
-            fprintf('Concatenating dicom files\n');
+            fprintf('Concateniating dicom files\n');
             dicomOut = spm_dicom_convert(hdr,'all','flat','img');
 
             movefile(dicomOut.files{1},[getenv('recon_patientCode') '_ct.img']);
